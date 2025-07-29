@@ -56,7 +56,7 @@ Instance.new("UICorner",gui).CornerRadius=UDim.new(0,12)
 
 local title = Instance.new("TextLabel",gui)
 title.Size=UDim2.new(1,0,0,35)
-title.Text="Vexus v9"
+title.Text="Vexus v1"
 title.TextColor3=Color3.new(1,1,1)
 title.BackgroundTransparency=1
 title.TextScaled=true
