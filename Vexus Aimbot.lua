@@ -1,21 +1,20 @@
--- Vexus v9 – Universal + Gun Mods
+
 local plr = game.Players.LocalPlayer
 local players = game:GetService("Players")
 local uis = game:GetService("UserInputService")
 local rs = game:GetService("RunService")
 local ts = game:GetService("TweenService")
 local cam = workspace.CurrentCamera
-local mouse = plr:GetMouse()
 
 local theme = Color3.fromRGB(110,0,220)
 
 local settings = {
     AimbotKey = Enum.UserInputType.MouseButton2,
-    AimbotMode = "Hold", -- Hold or Toggle
+    AimbotMode = "Hold",
     FOV = 150,
     Smoothness = 0.25,
     WalkSpeed = 16,
-    JumpPower = 50
+    JumpPower = 50,
 }
 
 local states = {
@@ -24,18 +23,14 @@ local states = {
     noclip = false,
     infjump = false,
     aimbot = false,
-
-    gun_rapidfire = false,
-    gun_norecoil = false,
-    gun_nospread = false,
-    gun_autofire = false,
-    gun_instant = false
+    followTarget = nil,
+    sitTarget = nil,
 }
 
+local currentTab = "Movement"
 local espFolder = Instance.new("Folder",workspace)
 espFolder.Name = "VexusESP"
 
--- TEAM CHECK
 local function sameTeam(a,b)
     if a.Team and b.Team then
         return a.Team == b.Team
@@ -43,9 +38,7 @@ local function sameTeam(a,b)
     return false
 end
 
------------------------
--- GUI Setup
------------------------
+
 local screen = Instance.new("ScreenGui",plr.PlayerGui)
 screen.ResetOnSpawn=false
 
@@ -64,7 +57,7 @@ Instance.new("UICorner",gui).CornerRadius=UDim.new(0,12)
 
 local title = Instance.new("TextLabel",gui)
 title.Size=UDim2.new(1,0,0,35)
-title.Text="Vexus v9"
+title.Text="Vexus v1"
 title.TextColor3=Color3.new(1,1,1)
 title.BackgroundTransparency=1
 title.TextScaled=true
@@ -80,7 +73,7 @@ content.Position=UDim2.new(0,0,0,70)
 content.CanvasSize=UDim2.new(0,0,0,1500)
 content.ScrollBarThickness=6
 
--- FOV circle
+
 local fovCircle = Instance.new("Frame",screen)
 fovCircle.AnchorPoint=Vector2.new(0.5,0.5)
 fovCircle.Size=UDim2.new(0,settings.FOV*2,0,settings.FOV*2)
@@ -89,7 +82,7 @@ local cf=Instance.new("UICorner",fovCircle) cf.CornerRadius=UDim.new(1,0)
 local st=Instance.new("UIStroke",fovCircle) st.Thickness=1 st.Color=Color3.new(1,1,1)
 fovCircle.Visible=false
 
--- Toggle menu
+
 local visible=false
 local function toggleMenu()
     visible=not visible
@@ -102,9 +95,11 @@ local function toggleMenu()
     end
 end
 toggleBtn.MouseButton1Click:Connect(toggleMenu)
-uis.InputBegan:Connect(function(i) if i.KeyCode==Enum.KeyCode.Insert then toggleMenu() end end)
+uis.InputBegan:Connect(function(i) 
+    if i.KeyCode==Enum.KeyCode.Insert then toggleMenu() end
+end)
 
--- Dragging GUI
+
 local dragging=false local dragStart,dragInput,startPos
 title.InputBegan:Connect(function(i)
     if i.UserInputType==Enum.UserInputType.MouseButton1 then
@@ -120,9 +115,7 @@ rs.RenderStepped:Connect(function()
     end
 end)
 
------------------------
--- GUI Builders
------------------------
+
 local function clearContent() for _,v in pairs(content:GetChildren()) do if v:IsA("GuiObject") then v:Destroy() end end end
 local function makeSwitch(y,text,flag)
     local b=Instance.new("TextButton",content)
@@ -130,7 +123,7 @@ local function makeSwitch(y,text,flag)
     b.Position=UDim2.new(0,10,0,y)
     b.BackgroundColor3=Color3.fromRGB(45,45,45)
     b.TextColor3=Color3.new(1,1,1)
-    b.Text=text..": OFF"
+    b.Text=text..": "..(states[flag] and "ON" or "OFF")
     b.MouseButton1Click:Connect(function()
         states[flag]=not states[flag]
         b.Text=text..": "..(states[flag] and "ON" or "OFF")
@@ -170,10 +163,19 @@ local function makeSlider(y,text,min,max,value,callback)
         end
     end)
 end
+local function makeSearchBox(y,callback)
+    local tb=Instance.new("TextBox",content)
+    tb.Size=UDim2.new(1,-20,0,30)
+    tb.Position=UDim2.new(0,10,0,y)
+    tb.Text=""
+    tb.PlaceholderText="Search player..."
+    tb.TextColor3=Color3.new(1,1,1)
+    tb.BackgroundColor3=Color3.fromRGB(60,60,60)
+    tb.FocusLost:Connect(function() callback(tb.Text:lower()) end)
+    return tb
+end
 
------------------------
--- ESP
------------------------
+
 local function createESP(player)
     if player==plr or sameTeam(plr,player) then return end
     local box=Instance.new("BoxHandleAdornment")
@@ -190,61 +192,86 @@ local function createESP(player)
     if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
         box.Adornee=player.Character.HumanoidRootPart
     end
-    local bill=Instance.new("BillboardGui",espFolder)
-    bill.Size=UDim2.new(0,100,0,20)
-    bill.AlwaysOnTop=true
-    local lbl=Instance.new("TextLabel",bill)
-    lbl.Size=UDim2.new(1,0,1,0)
-    lbl.BackgroundTransparency=1
-    lbl.TextColor3=Color3.new(1,1,1)
-    lbl.Text=player.Name
-    player.CharacterAdded:Connect(function(c)
-        bill.Adornee=c:WaitForChild("Head")
-    end)
-    if player.Character and player.Character:FindFirstChild("Head") then
-        bill.Adornee=player.Character.Head
-    end
 end
 
-players.PlayerAdded:Connect(function(p) if states.esp then createESP(p) end end)
 
------------------------
--- Gun Modifications
------------------------
-local function patchGun(tool)
-    if not tool:IsA("Tool") then return end
-    for _,obj in pairs(tool:GetDescendants()) do
-        if obj:IsA("ModuleScript") or obj:IsA("LocalScript") then
-            -- Try to modify common properties (depends on game)
-            local src = obj
-            -- These modifications only affect known games like Arsenal/your game if the properties exist
-            local f = src:FindFirstChildWhichIsA("ModuleScript") or src
-            -- Rapid fire
-            if states.gun_rapidfire then pcall(function() if f:FindFirstChild("FireRate") then f.FireRate.Value = 0.01 end end) end
-            -- No recoil
-            if states.gun_norecoil then pcall(function() if f:FindFirstChild("Recoil") then f.Recoil.Value = 0 end end) end
-            -- No spread
-            if states.gun_nospread then pcall(function() if f:FindFirstChild("Spread") then f.Spread.Value = 0 end end) end
-            -- Instant equip
-            if states.gun_instant then pcall(function() if f:FindFirstChild("EquipTime") then f.EquipTime.Value = 0 end end) end
-            -- Autofire
-            if states.gun_autofire then pcall(function() if f:FindFirstChild("Auto") then f.Auto.Value = true end end) end
+local function buildAdmin(filter)
+    clearContent()
+    local y=10
+
+    local stopBtn = Instance.new("TextButton", content)
+    stopBtn.Size = UDim2.new(1,-20,0,30)
+    stopBtn.Position = UDim2.new(0,10,0,y)
+    stopBtn.BackgroundColor3 = Color3.fromRGB(200,50,50)
+    stopBtn.Text = "Stop Loop/Sit"
+    stopBtn.TextColor3 = Color3.new(1,1,1)
+    stopBtn.MouseButton1Click:Connect(function()
+        states.followTarget=nil
+        states.sitTarget=nil
+    end)
+    y = y + 40
+
+    makeSearchBox(y,function(txt) buildAdmin(txt) end)
+    y = y + 40
+
+    for _,p in ipairs(players:GetPlayers()) do
+        if p ~= plr and (not filter or p.Name:lower():find(filter)) then
+            local frame = Instance.new("Frame", content)
+            frame.Size = UDim2.new(1,-20,0,30)
+            frame.Position = UDim2.new(0,10,0,y)
+            frame.BackgroundColor3 = Color3.fromRGB(45,45,45)
+
+            local label = Instance.new("TextLabel", frame)
+            label.Size = UDim2.new(0.3,0,1,0)
+            label.Text = p.Name
+            label.TextColor3 = Color3.new(1,1,1)
+            label.BackgroundTransparency = 1
+
+            local tpBtn = Instance.new("TextButton", frame)
+            tpBtn.Size = UDim2.new(0.2,0,1,0)
+            tpBtn.Position = UDim2.new(0.3,0,0,0)
+            tpBtn.Text = "TP"
+            tpBtn.BackgroundColor3 = theme
+            tpBtn.TextColor3 = Color3.new(1,1,1)
+            tpBtn.MouseButton1Click:Connect(function()
+                if p.Character and p.Character:FindFirstChild("HumanoidRootPart") and plr.Character then
+                    plr.Character:MoveTo(p.Character.HumanoidRootPart.Position + Vector3.new(2,0,0))
+                end
+            end)
+
+            local loopBtn = Instance.new("TextButton", frame)
+            loopBtn.Size = UDim2.new(0.25,0,1,0)
+            loopBtn.Position = UDim2.new(0.5,0,0,0)
+            loopBtn.Text = "Loop TP"
+            loopBtn.BackgroundColor3 = theme
+            loopBtn.TextColor3 = Color3.new(1,1,1)
+            loopBtn.MouseButton1Click:Connect(function()
+                states.followTarget = p
+                states.sitTarget = nil
+            end)
+
+            local sitBtn = Instance.new("TextButton", frame)
+            sitBtn.Size = UDim2.new(0.25,0,1,0)
+            sitBtn.Position = UDim2.new(0.75,0,0,0)
+            sitBtn.Text = "Sit"
+            sitBtn.BackgroundColor3 = theme
+            sitBtn.TextColor3 = Color3.new(1,1,1)
+            sitBtn.MouseButton1Click:Connect(function()
+                states.sitTarget = p
+                states.followTarget = nil
+            end)
+
+            y = y + 35
         end
     end
 end
 
-plr.CharacterAdded:Connect(function(char)
-    char.ChildAdded:Connect(function(child)
-        if child:IsA("Tool") then
-            child.Equipped:Connect(function() patchGun(child) end)
-        end
-    end)
-end)
+players.PlayerAdded:Connect(function() if currentTab=="Admin" then buildAdmin() end end)
+players.PlayerRemoving:Connect(function() if currentTab=="Admin" then buildAdmin() end end)
 
------------------------
--- Tabs
------------------------
+
 local function switchTab(tab)
+    currentTab = tab
     clearContent()
     local y=10
     if tab=="Movement" then
@@ -259,16 +286,14 @@ local function switchTab(tab)
         makeSwitch(y,"Aimbot","aimbot") y+=35
         makeSlider(y,"FOV",50,400,settings.FOV,function(v) settings.FOV=v end) y+=50
         makeSlider(y,"Smoothness",5,100,math.floor(settings.Smoothness*100),function(v) settings.Smoothness=v/100 end)
-    elseif tab=="Gun Mods" then
-        makeSwitch(y,"Rapid Fire","gun_rapidfire") y+=35
-        makeSwitch(y,"No Recoil","gun_norecoil") y+=35
-        makeSwitch(y,"No Spread","gun_nospread") y+=35
-        makeSwitch(y,"Instant Equip","gun_instant") y+=35
-        makeSwitch(y,"Force Auto","gun_autofire")
+    elseif tab=="Admin" then
+        buildAdmin()
+    elseif tab=="Fun" then
+
     end
 end
 
-local tabs={"Movement","Visual","Combat","Gun Mods"}
+local tabs={"Movement","Visual","Combat","Admin","Fun"}
 for i,tab in ipairs(tabs) do
     local tb=Instance.new("TextButton",tabFrame)
     tb.Size=UDim2.new(1/#tabs,0,1,0)
@@ -279,20 +304,16 @@ for i,tab in ipairs(tabs) do
 end
 switchTab("Movement")
 
------------------------
--- Infinite jump
------------------------
+
 uis.JumpRequest:Connect(function()
     if states.infjump and plr.Character and plr.Character:FindFirstChild("Humanoid") then
         plr.Character.Humanoid:ChangeState("Jumping")
     end
 end)
 
------------------------
--- Main loop
------------------------
+
 rs.RenderStepped:Connect(function()
-    -- ESP
+    
     if states.esp then
         espFolder:ClearAllChildren()
         for _,p in ipairs(players:GetPlayers()) do
@@ -300,12 +321,15 @@ rs.RenderStepped:Connect(function()
                 createESP(p)
             end
         end
-    else espFolder:ClearAllChildren() end
+    else
+        espFolder:ClearAllChildren()
+    end
 
-    -- Aimbot
+
     fovCircle.Visible=states.aimbot
     fovCircle.Position=UDim2.new(0,uis:GetMouseLocation().X,0,uis:GetMouseLocation().Y)
     fovCircle.Size=UDim2.new(0,settings.FOV*2,0,settings.FOV*2)
+
 
     if states.aimbot then
         local active = (settings.AimbotMode=="Hold" and uis:IsMouseButtonPressed(settings.AimbotKey))
@@ -326,7 +350,7 @@ rs.RenderStepped:Connect(function()
         end
     end
 
-    -- Fly
+
     if states.fly and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
         local hrp=plr.Character.HumanoidRootPart
         local dir=Vector3.zero
@@ -337,9 +361,20 @@ rs.RenderStepped:Connect(function()
         hrp.Velocity=dir*80
     end
 
+
     if states.noclip and plr.Character then
         for _,v in pairs(plr.Character:GetDescendants()) do
             if v:IsA("BasePart") then v.CanCollide=false end
+        end
+    end
+
+
+    if (states.followTarget or states.sitTarget) and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+        local target = states.followTarget or states.sitTarget
+        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+            local targetPos = target.Character.HumanoidRootPart.Position + (states.followTarget and Vector3.new(2,0,0) or Vector3.zero)
+            local hrp = plr.Character.HumanoidRootPart
+            ts:Create(hrp,TweenInfo.new(0.15),{CFrame=CFrame.new(targetPos, targetPos + cam.CFrame.LookVector)}):Play()
         end
     end
 end)
