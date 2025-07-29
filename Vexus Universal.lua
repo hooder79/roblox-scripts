@@ -37,7 +37,6 @@ local function sameTeam(a,b)
     return false
 end
 
-
 local screen = Instance.new("ScreenGui",plr.PlayerGui)
 screen.ResetOnSpawn=false
 
@@ -72,7 +71,6 @@ content.Position=UDim2.new(0,0,0,70)
 content.CanvasSize=UDim2.new(0,0,0,1500)
 content.ScrollBarThickness=6
 
-
 local fovCircle = Instance.new("Frame",screen)
 fovCircle.AnchorPoint=Vector2.new(0.5,0.5)
 fovCircle.Size=UDim2.new(0,settings.FOV*2,0,settings.FOV*2)
@@ -80,7 +78,6 @@ fovCircle.BackgroundTransparency=1
 local cf=Instance.new("UICorner",fovCircle) cf.CornerRadius=UDim.new(1,0)
 local st=Instance.new("UIStroke",fovCircle) st.Thickness=1 st.Color=Color3.new(1,1,1)
 fovCircle.Visible=false
-
 
 local visible=false
 local function toggleMenu()
@@ -98,7 +95,6 @@ uis.InputBegan:Connect(function(i)
     if i.KeyCode==Enum.KeyCode.Insert then toggleMenu() end
 end)
 
-
 local dragging=false local dragStart,dragInput,startPos
 title.InputBegan:Connect(function(i)
     if i.UserInputType==Enum.UserInputType.MouseButton1 then
@@ -113,7 +109,6 @@ rs.RenderStepped:Connect(function()
         gui.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+d.X,startPos.Y.Scale,startPos.Y.Offset+d.Y)
     end
 end)
-
 
 local function clearContent() for _,v in pairs(content:GetChildren()) do if v:IsA("GuiObject") then v:Destroy() end end end
 local function makeSwitch(y,text,flag)
@@ -174,7 +169,6 @@ local function makeSearchBox(y,callback)
     return tb
 end
 
-
 local function createESP(player)
     if player==plr or sameTeam(plr,player) then return end
     local box=Instance.new("BoxHandleAdornment")
@@ -193,11 +187,9 @@ local function createESP(player)
     end
 end
 
-
 local function buildAdmin(filter)
     clearContent()
     local y=10
-
     local stopBtn = Instance.new("TextButton", content)
     stopBtn.Size = UDim2.new(1,-20,0,30)
     stopBtn.Position = UDim2.new(0,10,0,y)
@@ -209,23 +201,19 @@ local function buildAdmin(filter)
         states.sitTarget=nil
     end)
     y = y + 40
-
     makeSearchBox(y,function(txt) buildAdmin(txt) end)
     y = y + 40
-
     for _,p in ipairs(players:GetPlayers()) do
         if p ~= plr and (not filter or p.Name:lower():find(filter)) then
             local frame = Instance.new("Frame", content)
             frame.Size = UDim2.new(1,-20,0,30)
             frame.Position = UDim2.new(0,10,0,y)
             frame.BackgroundColor3 = Color3.fromRGB(45,45,45)
-
             local label = Instance.new("TextLabel", frame)
             label.Size = UDim2.new(0.3,0,1,0)
             label.Text = p.Name
             label.TextColor3 = Color3.new(1,1,1)
             label.BackgroundTransparency = 1
-
             local tpBtn = Instance.new("TextButton", frame)
             tpBtn.Size = UDim2.new(0.2,0,1,0)
             tpBtn.Position = UDim2.new(0.3,0,0,0)
@@ -237,7 +225,6 @@ local function buildAdmin(filter)
                     plr.Character:MoveTo(p.Character.HumanoidRootPart.Position + Vector3.new(2,0,0))
                 end
             end)
-
             local loopBtn = Instance.new("TextButton", frame)
             loopBtn.Size = UDim2.new(0.25,0,1,0)
             loopBtn.Position = UDim2.new(0.5,0,0,0)
@@ -248,7 +235,6 @@ local function buildAdmin(filter)
                 states.followTarget = p
                 states.sitTarget = nil
             end)
-
             local sitBtn = Instance.new("TextButton", frame)
             sitBtn.Size = UDim2.new(0.25,0,1,0)
             sitBtn.Position = UDim2.new(0.75,0,0,0)
@@ -259,7 +245,6 @@ local function buildAdmin(filter)
                 states.sitTarget = p
                 states.followTarget = nil
             end)
-
             y = y + 35
         end
     end
@@ -267,7 +252,6 @@ end
 
 players.PlayerAdded:Connect(function() if currentTab=="Admin" then buildAdmin() end end)
 players.PlayerRemoving:Connect(function() if currentTab=="Admin" then buildAdmin() end end)
-
 
 local function switchTab(tab)
     currentTab = tab
@@ -277,8 +261,18 @@ local function switchTab(tab)
         makeSwitch(y,"Fly","fly") y+=35
         makeSwitch(y,"Noclip","noclip") y+=35
         makeSwitch(y,"Infinite Jump","infjump") y+=35
-        makeSlider(y,"WalkSpeed",16,200,settings.WalkSpeed,function(v) settings.WalkSpeed=v if plr.Character and plr.Character:FindFirstChild("Humanoid") then plr.Character.Humanoid.WalkSpeed=v end end) y+=50
-        makeSlider(y,"JumpPower",50,200,settings.JumpPower,function(v) settings.JumpPower=v if plr.Character and plr.Character:FindFirstChild("Humanoid") then plr.Character.Humanoid.JumpPower=v end end)
+        makeSlider(y,"WalkSpeed",16,200,settings.WalkSpeed,function(v)
+            settings.WalkSpeed=v
+            if plr.Character and plr.Character:FindFirstChild("Humanoid") then
+                plr.Character.Humanoid.WalkSpeed=v
+            end
+        end) y+=50
+        makeSlider(y,"JumpPower",50,200,settings.JumpPower,function(v)
+            settings.JumpPower=v
+            if plr.Character and plr.Character:FindFirstChild("Humanoid") then
+                plr.Character.Humanoid.JumpPower=v
+            end
+        end)
     elseif tab=="Visual" then
         makeSwitch(y,"ESP","esp")
     elseif tab=="Combat" then
@@ -288,8 +282,22 @@ local function switchTab(tab)
     elseif tab=="Admin" then
         buildAdmin()
     elseif tab=="Fun" then
-
     end
+    y = y + 60
+    local discordBtn = Instance.new("TextButton",content)
+    discordBtn.Size=UDim2.new(1,-20,0,30)
+    discordBtn.Position=UDim2.new(0,10,0,y)
+    discordBtn.BackgroundColor3=Color3.fromRGB(80,40,100)
+    discordBtn.TextColor3=Color3.new(1,1,1)
+    discordBtn.Text="Join Discord"
+    discordBtn.MouseButton1Click:Connect(function()
+        setclipboard("https://discord.gg/hbPM27GYYN")
+        game.StarterGui:SetCore("SendNotification",{
+            Title="Vexus",
+            Text="Discord link copied to clipboard!",
+            Duration=5
+        })
+    end)
 end
 
 local tabs={"Movement","Visual","Combat","Admin","Fun"}
@@ -303,16 +311,13 @@ for i,tab in ipairs(tabs) do
 end
 switchTab("Movement")
 
-
 uis.JumpRequest:Connect(function()
     if states.infjump and plr.Character and plr.Character:FindFirstChild("Humanoid") then
         plr.Character.Humanoid:ChangeState("Jumping")
     end
 end)
 
-
 rs.RenderStepped:Connect(function()
-
     if states.esp then
         espFolder:ClearAllChildren()
         for _,p in ipairs(players:GetPlayers()) do
@@ -323,13 +328,9 @@ rs.RenderStepped:Connect(function()
     else
         espFolder:ClearAllChildren()
     end
-
-
     fovCircle.Visible=states.aimbot
     fovCircle.Position=UDim2.new(0,uis:GetMouseLocation().X,0,uis:GetMouseLocation().Y)
     fovCircle.Size=UDim2.new(0,settings.FOV*2,0,settings.FOV*2)
-
-
     if states.aimbot then
         local active = (settings.AimbotMode=="Hold" and uis:IsMouseButtonPressed(settings.AimbotKey))
         if active then
@@ -348,8 +349,6 @@ rs.RenderStepped:Connect(function()
             end
         end
     end
-
-
     if states.fly and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
         local hrp=plr.Character.HumanoidRootPart
         local dir=Vector3.zero
@@ -359,15 +358,11 @@ rs.RenderStepped:Connect(function()
         if uis:IsKeyDown(Enum.KeyCode.D) then dir+=cam.CFrame.RightVector end
         hrp.Velocity=dir*80
     end
-
-
     if states.noclip and plr.Character then
         for _,v in pairs(plr.Character:GetDescendants()) do
             if v:IsA("BasePart") then v.CanCollide=false end
         end
     end
-
-
     if (states.followTarget or states.sitTarget) and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
         local target = states.followTarget or states.sitTarget
         if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
