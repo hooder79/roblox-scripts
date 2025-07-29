@@ -8,3 +8,4 @@ i will make scripts for different games or try to for  now i have currently made
 # Scripts
 
 1: Vexus Universial aimbot and admin
+2: Vexus Aimbot
