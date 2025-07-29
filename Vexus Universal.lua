@@ -1,4 +1,3 @@
--- Vexus v9 – Universal Admin + Fun Edition with Real Fling
 local plr = game.Players.LocalPlayer
 local players = game:GetService("Players")
 local uis = game:GetService("UserInputService")
@@ -15,7 +14,6 @@ local settings = {
     Smoothness = 0.25,
     WalkSpeed = 16,
     JumpPower = 50,
-    FlingPower = 200, -- used for additional push force
 }
 
 local states = {
@@ -24,7 +22,6 @@ local states = {
     noclip = false,
     infjump = false,
     aimbot = false,
-    fling = false,
     followTarget = nil,
     sitTarget = nil,
 }
@@ -40,7 +37,7 @@ local function sameTeam(a,b)
     return false
 end
 
--- GUI
+
 local screen = Instance.new("ScreenGui",plr.PlayerGui)
 screen.ResetOnSpawn=false
 
@@ -75,7 +72,7 @@ content.Position=UDim2.new(0,0,0,70)
 content.CanvasSize=UDim2.new(0,0,0,1500)
 content.ScrollBarThickness=6
 
--- FOV circle
+
 local fovCircle = Instance.new("Frame",screen)
 fovCircle.AnchorPoint=Vector2.new(0.5,0.5)
 fovCircle.Size=UDim2.new(0,settings.FOV*2,0,settings.FOV*2)
@@ -84,7 +81,7 @@ local cf=Instance.new("UICorner",fovCircle) cf.CornerRadius=UDim.new(1,0)
 local st=Instance.new("UIStroke",fovCircle) st.Thickness=1 st.Color=Color3.new(1,1,1)
 fovCircle.Visible=false
 
--- Menu toggle
+
 local visible=false
 local function toggleMenu()
     visible=not visible
@@ -97,9 +94,11 @@ local function toggleMenu()
     end
 end
 toggleBtn.MouseButton1Click:Connect(toggleMenu)
-uis.InputBegan:Connect(function(i) if i.KeyCode==Enum.KeyCode.Insert then toggleMenu() end end)
+uis.InputBegan:Connect(function(i) 
+    if i.KeyCode==Enum.KeyCode.Insert then toggleMenu() end
+end)
 
--- Dragging
+
 local dragging=false local dragStart,dragInput,startPos
 title.InputBegan:Connect(function(i)
     if i.UserInputType==Enum.UserInputType.MouseButton1 then
@@ -115,7 +114,7 @@ rs.RenderStepped:Connect(function()
     end
 end)
 
--- GUI helpers
+
 local function clearContent() for _,v in pairs(content:GetChildren()) do if v:IsA("GuiObject") then v:Destroy() end end end
 local function makeSwitch(y,text,flag)
     local b=Instance.new("TextButton",content)
@@ -175,7 +174,7 @@ local function makeSearchBox(y,callback)
     return tb
 end
 
--- ESP
+
 local function createESP(player)
     if player==plr or sameTeam(plr,player) then return end
     local box=Instance.new("BoxHandleAdornment")
@@ -194,7 +193,7 @@ local function createESP(player)
     end
 end
 
--- Admin tab builder
+
 local function buildAdmin(filter)
     clearContent()
     local y=10
@@ -269,7 +268,7 @@ end
 players.PlayerAdded:Connect(function() if currentTab=="Admin" then buildAdmin() end end)
 players.PlayerRemoving:Connect(function() if currentTab=="Admin" then buildAdmin() end end)
 
--- Tabs
+
 local function switchTab(tab)
     currentTab = tab
     clearContent()
@@ -289,8 +288,7 @@ local function switchTab(tab)
     elseif tab=="Admin" then
         buildAdmin()
     elseif tab=="Fun" then
-        makeSwitch(y,"Fling","fling") y+=35
-        makeSlider(y,"Fling Power",50,500,settings.FlingPower,function(v) settings.FlingPower=v end)
+
     end
 end
 
@@ -305,16 +303,16 @@ for i,tab in ipairs(tabs) do
 end
 switchTab("Movement")
 
--- Infinite jump
+
 uis.JumpRequest:Connect(function()
     if states.infjump and plr.Character and plr.Character:FindFirstChild("Humanoid") then
         plr.Character.Humanoid:ChangeState("Jumping")
     end
 end)
 
--- Main loop
+
 rs.RenderStepped:Connect(function()
-    -- ESP
+
     if states.esp then
         espFolder:ClearAllChildren()
         for _,p in ipairs(players:GetPlayers()) do
@@ -326,12 +324,12 @@ rs.RenderStepped:Connect(function()
         espFolder:ClearAllChildren()
     end
 
-    -- Aimbot visuals
+
     fovCircle.Visible=states.aimbot
     fovCircle.Position=UDim2.new(0,uis:GetMouseLocation().X,0,uis:GetMouseLocation().Y)
     fovCircle.Size=UDim2.new(0,settings.FOV*2,0,settings.FOV*2)
 
-    -- Aimbot
+
     if states.aimbot then
         local active = (settings.AimbotMode=="Hold" and uis:IsMouseButtonPressed(settings.AimbotKey))
         if active then
@@ -351,7 +349,7 @@ rs.RenderStepped:Connect(function()
         end
     end
 
-    -- Fly
+
     if states.fly and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
         local hrp=plr.Character.HumanoidRootPart
         local dir=Vector3.zero
@@ -362,45 +360,20 @@ rs.RenderStepped:Connect(function()
         hrp.Velocity=dir*80
     end
 
-    -- Noclip
+
     if states.noclip and plr.Character then
         for _,v in pairs(plr.Character:GetDescendants()) do
             if v:IsA("BasePart") then v.CanCollide=false end
         end
     end
 
-    -- Tweened follow or sit
+
     if (states.followTarget or states.sitTarget) and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
         local target = states.followTarget or states.sitTarget
         if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
             local targetPos = target.Character.HumanoidRootPart.Position + (states.followTarget and Vector3.new(2,0,0) or Vector3.zero)
             local hrp = plr.Character.HumanoidRootPart
             ts:Create(hrp,TweenInfo.new(0.15),{CFrame=CFrame.new(targetPos, targetPos + cam.CFrame.LookVector)}):Play()
-        end
-    end
-
-    -- REAL Fling (spin)
-    if states.fling and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-        local hrp = plr.Character.HumanoidRootPart
-        hrp.AssemblyAngularVelocity = Vector3.new(0, 9999, 0)
-        hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-        hrp.RotVelocity = Vector3.new(0, 9999, 0)
-
-        -- Optional: extra push force
-        for _, p in ipairs(players:GetPlayers()) do
-            if p ~= plr and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                local targetHRP = p.Character.HumanoidRootPart
-                if (targetHRP.Position - hrp.Position).Magnitude < 5 then
-                    targetHRP.Velocity = (targetHRP.Position - hrp.Position).Unit * settings.FlingPower
-                end
-            end
-        end
-    else
-        -- Stop spinning when fling is off
-        if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-            local hrp = plr.Character.HumanoidRootPart
-            hrp.AssemblyAngularVelocity = Vector3.zero
-            hrp.RotVelocity = Vector3.zero
         end
     end
 end)
